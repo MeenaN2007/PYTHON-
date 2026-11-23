@@ -1,1 +1,103 @@
+import random
+from time import perf_counter
 
+
+def rainfall_report(readings):
+
+    if not readings:
+        return [], None, None, [], []
+
+    # Calculate weekly rainfall totals
+    weekly_totals = [
+        sum(readings[i:i + 7])
+        for i in range(0, len(readings) - 6, 7)
+    ]
+
+    # Find maximum and minimum rainfall days
+    max_day = max(enumerate(readings), key=lambda x: x[1])
+    min_day = min(enumerate(readings), key=lambda x: x[1])
+
+    # Calculate 7-day moving averages
+    moving = []
+
+    if len(readings) >= 7:
+        window_sum = sum(readings[:7])
+        moving.append(window_sum / 7)
+
+        for i in range(7, len(readings)):
+            window_sum += readings[i] - readings[i - 7]
+            moving.append(window_sum / 7)
+
+    # Find dry days
+    dry_days = [
+        i + 1 for i, value in enumerate(readings)
+        if value == 0
+    ]
+
+    return weekly_totals, max_day, min_day, moving, dry_days
+
+
+def naive_average(data, k=7):
+    return [
+        sum(data[i:i + k]) / k
+        for i in range(len(data) - k + 1)
+    ]
+
+
+def running_average(data, k=7):
+
+    if len(data) < k:
+        return []
+
+    total = sum(data[:k])
+    result = [total / k]
+
+    for i in range(k, len(data)):
+        total += data[i] - data[i - k]
+        result.append(total / k)
+
+    return result
+
+
+if _name_ == "_main_":
+
+    random.seed(10)
+
+    readings = [
+        random.randint(0, 50)
+        for _ in range(365)
+    ]
+
+    weekly, maximum, minimum, averages, dry = rainfall_report(readings)
+
+    print("Number of readings:", len(readings))
+    print("Weekly totals:", weekly)
+    print("Maximum (day index, mm):", maximum)
+    print("Minimum (day index, mm):", minimum)
+    print("Moving averages:", [round(x, 2) for x in averages[:5]], "...")
+    print("Dry days (1-based):", dry)
+
+    print("\n--- Performance comparison ---")
+
+    for n in (365, 36500, 365000):
+
+        data = [
+            random.randint(0, 50)
+            for _ in range(n)
+        ]
+
+        t0 = perf_counter()
+        naive_average(data)
+        naive = perf_counter() - t0
+
+        t0 = perf_counter()
+        running_average(data)
+        fast = perf_counter() - t0
+
+        print(
+            n, "readings -> naive:",
+            round(naive, 4),
+            "s, running sum:",
+            round(fast, 4),
+            "s"
+        )
