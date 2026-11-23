@@ -1,1 +1,140 @@
+import os
+import tempfile
 
+CLEAN = {
+    "cse.txt": "192311001,Anita Rao,CSE,anita@simats.edu,Dance;Quiz\n"
+               "192311002,Bala Kumar,CSE,bala@simats.edu,Quiz\n",
+
+    "ece.txt": "192312001,Dinesh,ECE,dinesh@simats.edu,Dance;Hackathon\n",
+
+    "mech.txt": "192313001,Farook,MECH,farook@simats.edu,Hackathon;Quiz\n",
+
+    "civil.txt": "192314001,Hari,CIVIL,hari@simats.edu,Music\n",
+
+    "it.txt": "192315001,Ishwarya,IT,ishwarya@simats.edu,Music;Dance\n"
+}
+
+
+def make_files(folder, data):
+    os.makedirs(folder, exist_ok=True)
+
+    for name, content in data.items():
+        path = os.path.join(folder, name)
+
+        with open(path, "w") as f:
+            f.write(content)
+
+
+def run(paths, out_dir):
+    os.makedirs(out_dir, exist_ok=True)
+
+    records = []
+    errors = []
+    registered_ids = set()
+    departments = {}
+    events = {}
+
+    for path in paths:
+        try:
+            with open(path, "r") as f:
+                for line_no, line in enumerate(f, 1):
+                    try:
+                        fields = [x.strip() for x in line.strip().split(",")]
+
+                        if len(fields) != 5:
+                            raise ValueError("Invalid number of fields")
+
+                        reg, name, dept, email, event_text = fields
+
+                        if not all(fields):
+                            raise ValueError("Empty field")
+
+                        if "@" not in email or "." not in email:
+                            raise ValueError("Invalid email")
+
+                        if reg in registered_ids:
+                            raise ValueError("Duplicate registration ID")
+
+                        registered_ids.add(reg)
+
+                        event_list = [
+                            e.strip() for e in event_text.split(";")
+                            if e.strip()
+                        ]
+
+                        if not event_list:
+                            raise ValueError("No events registered")
+
+                        records.append(
+                            (reg, name, dept, email, event_list)
+                        )
+
+                        departments[dept] = departments.get(dept, 0) + 1
+
+                        for event in event_list:
+                            events[event] = events.get(event, 0) + 1
+
+                    except ValueError as e:
+                        errors.append(
+                            f"{path}, Line {line_no}: {e}"
+                        )
+
+        except OSError as e:
+            errors.append(f"{path}: {e}")
+
+    # Write master list
+    with open(os.path.join(out_dir, "master_list.txt"), "w") as f:
+        for reg, name, dept, email, event_list in records:
+            f.write(
+                f"{reg}, {name}, {dept}, {email}, "
+                f"{';'.join(event_list)}\n"
+            )
+
+    # Write summary
+    with open(os.path.join(out_dir, "summary.txt"), "w") as f:
+        f.write(f"Total valid registrations: {len(records)}\n")
+        f.write(f"Total invalid records: {len(errors)}\n")
+
+        f.write("\nDepartment-wise registrations:\n")
+        for dept, count in departments.items():
+            f.write(f"{dept}: {count}\n")
+
+        f.write("\nEvent-wise registrations:\n")
+        for event, count in events.items():
+            f.write(f"{event}: {count}\n")
+
+    # Write error log
+    with open(os.path.join(out_dir, "error_log.txt"), "w") as f:
+        for error in errors:
+            f.write(error + "\n")
+
+
+def demo(data):
+    base = tempfile.mkdtemp()
+    inp = os.path.join(base, "in")
+    out = os.path.join(base, "out")
+
+    make_files(inp, data)
+
+    paths = [
+        os.path.join(inp, name)
+        for name in data
+    ]
+
+    run(paths, out)
+
+    print("Registration completed!")
+
+    for name in [
+        "master_list.txt",
+        "summary.txt",
+        "error_log.txt"
+    ]:
+        print("\n" + name)
+
+        with open(os.path.join(out, name), "r") as f:
+            print(f.read())
+
+
+if _name_ == "_main_":
+    demo(CLEAN)
