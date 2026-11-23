@@ -1,1 +1,94 @@
+from decimal import Decimal, ROUND_HALF_UP
 
+BASE_RATE = Decimal("30.00")
+FAT_STEP_VALUE = Decimal("0.40")
+SNF_STEP_VALUE = Decimal("0.30")
+BONUS_PER_LITRE = Decimal("0.50")
+
+
+def rounded(value):
+    return value.quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+
+
+def rate_per_litre(fat, snf, month="January"):
+    fat = Decimal(str(fat))
+    snf = Decimal(str(snf))
+
+    seasonal = month.lower() in ("april", "may", "june")
+
+    base = Decimal("32.00") if seasonal else BASE_RATE
+    fat_step = Decimal("0.45") if seasonal else FAT_STEP_VALUE
+
+    fat_steps = int(
+        ((fat - Decimal("3.5")) / Decimal("0.1"))
+        .quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    )
+
+    snf_steps = int(
+        ((snf - Decimal("8.5")) / Decimal("0.1"))
+        .quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+    )
+
+    rate = (
+        base
+        + fat_steps * fat_step
+        + snf_steps * SNF_STEP_VALUE
+    )
+
+    return rounded(rate)
+
+
+def payout(litres, fat, snf, month="January"):
+    litres = Decimal(str(litres))
+    rate = rate_per_litre(fat, snf, month)
+    return rounded(litres * rate)
+
+
+def ten_day_payment(entries, month="January"):
+    total_litres = Decimal("0")
+    total_payment = Decimal("0")
+
+    for litres, fat, snf in entries:
+        litres = Decimal(str(litres))
+
+        if litres <= 0 or Decimal(str(fat)) <= 0:
+            raise ValueError("Invalid litres or fat")
+
+        if Decimal(str(snf)) <= 0:
+            raise ValueError("Invalid SNF")
+
+        rate = rate_per_litre(fat, snf, month)
+        payment = rounded(litres * rate)
+
+        print(
+            f"Litres: {litres}, Rate: Rs.{rate}, "
+            f"Payment: Rs.{payment}"
+        )
+
+        total_litres += litres
+        total_payment += payment
+
+    bonus = Decimal("0")
+
+    if total_litres > 500:
+        bonus = rounded(total_litres * BONUS_PER_LITRE)
+
+    final_total = rounded(total_payment + bonus)
+
+    print("Total litres:", total_litres)
+    print("Milk payment: Rs.", total_payment)
+    print("Bonus: Rs.", bonus)
+    print("Final payment: Rs.", final_total)
+
+    return final_total
+
+
+if _name_ == "_main_":
+    entries = [
+        (250, 3.50, 8.50),
+        (260, 4.00, 8.70)
+    ]
+
+    ten_day_payment(entries, "April")
